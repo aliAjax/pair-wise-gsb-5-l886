@@ -1,6 +1,266 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  Boxes,
+  ClipboardCheck,
+  History,
+  Layers,
+  RotateCcw,
+  ShieldCheck,
+  Snowflake,
+} from 'lucide-react';
+import type {
+  Dependency,
+  FrozenVersion,
+  PersistedState,
+  RejectionRecord,
+} from './types';
+import type { Artifact } from './types';
+import { clone, evaluateBatch, freezeVersion, summarizeByArtifact } from './scope/scope';
+import { loadState, resetState, saveState } from './storage/storage';
+import Overview from './ui/Overview';
+import Dependencies from './ui/Dependencies';
+import Artifacts from './ui/Artifacts';
+import Versions from './ui/Versions';
+
+type View = 'gate' | 'deps' | 'artifacts' | 'versions';
+
+/** 草稿是否与某冻结版本完全一致（刷新后依赖、产物和版本链一致的判据） */
+function matchesVersion(draft: PersistedState['draft'], v: FrozenVersion | null): boolean {
+  if (!v) return false;
+  return (
+    JSON.stringify({ artifacts: draft.artifacts, dependencies: draft.dependencies }) ===
+    JSON.stringify({ artifacts: v.artifacts, dependencies: v.dependencies })
+  );
+}
+
+export default function App() {
+  const [state, setState] = useState<PersistedState>(() => loadState());
+  const [view, setView] = useState<View>('gate');
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => saveState(state), [state]);
+
+  const latest = state.versions[state.versions.length - 1] ?? null;
+  const precheck = useMemo(
+    () => evaluateBatch(state.draft),
+    [state.draft],
+  );
+  const isDirty = !matchesVersion(state.draft, latest);
+  // 草稿匹配的基线版本号
+  const draftVersion = useMemo(() => {
+    for (let i = state.versions.length - 1; i >= 0; i--) {
+      if (matchesVersion(state.draft, state.versions[i])) {
+        return state.versions[i].number;
+      }
+    }
+    return latest ? latest.number : 0;
+  }, [state.draft, state.versions, latest]);
+
+  const updateDraft = (patch: Partial<PersistedState['draft']>) =>
+    setState((s) => ({ ...s, draft: { ...s.draft, ...patch } }));
+
+  const flash = (msg: string) => {
+    setNotice(msg);
+    window.setTimeout(() => setNotice(null), 2600);
+  };
+
+  const approve = (reason: string) => {
+    const result = evaluateBatch(state.draft);
+    if (!result.ok) {
+      const rejection: RejectionRecord = { at: new Date().toISOString(), violations: result.violations };
+      setState((s) => ({ ...s, lastRejection: rejection }));
+      return;
+    }
+    setState((s) => {
+      const v = freezeVersion(s.draft, s.versions, reason);
+      return { ...s, versions: [...s.versions, v], lastRejection: null };
+    });
+    flash(`范围已冻结：v${(latest?.number ?? 0) + 1}`);
+  };
+
+  const reject = () => {
+    const result = evaluateBatch(state.draft);
+    if (result.ok) return;
+    setState((s) => ({
+      ...s,
+      lastRejection: { at: new Date().toISOString(), violations: result.violations },
+    }));
+    flash('整批拒绝已留档，范围未冻结');
+  };
+
+  const checkout = (v: FrozenVersion) => {
+    setState((s) => ({
+      ...s,
+      draft: { artifacts: clone(v.artifacts), dependencies: clone(v.dependencies) },
+    }));
+    setView('deps');
+    flash(`已载入 v${v.number} 作为草稿，保存调整将生成带原因的新版本`);
+  };
+
+  const hardReset = () => {
+    if (!window.confirm('恢复为初始演示数据？当前登记与版本链会被覆盖。')) return;
+    const fresh = resetState();
+    setState(fresh);
+    setSelectedVersion(null);
+    setView('gate');
+  };
+
+  const summary = useMemo(() => summarizeByArtifact(state.draft), [state.draft]);
+  const runtimeDepCount = new Set(
+    summary.flatMap((s) => s.runtime.map((d) => d.id)),
+  ).size;
+
+  const nav: { key: View; label: string; icon: typeof Boxes; badge?: number; danger?: boolean }[] = [
+    { key: 'gate', label: '核对台', icon: ClipboardCheck },
+    { key: 'deps', label: '依赖登记', icon: Boxes, badge: state.draft.dependencies.length },
+    { key: 'artifacts', label: '产物登记', icon: Layers, badge: state.draft.artifacts.length },
+    { key: 'versions', label: '版本链', icon: History, badge: state.versions.length },
+  ];
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon">
+            <ShieldCheck size={18} />
+          </div>
+          <div>
+            <b>License Lens</b>
+            <small>SCOPE CONSOLE</small>
+          </div>
+        </div>
+        <div className="nav-title">WORKSPACE</div>
+        {nav.map((n) => (
+          <button
+            key={n.key}
+            className={`nav ${view === n.key ? 'active' : ''}`}
+            onClick={() => setView(n.key)}
+          >
+            <n.icon size={16} />
+            {n.label}
+            {n.badge !== undefined && <span>{n.badge}</span>}
+          </button>
+        ))}
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <Snowflake size={16} />
+            <div>
+              <b>
+                {latest ? `冻结基线 v${latest.number}` : '尚无冻结版本'}
+              </b>
+              <small>
+                {isDirty ? '草稿有未冻结变更' : '草稿与版本链一致'}
+                {precheck.ok ? ' · 核对通过' : ` · ${precheck.violations.length} 项冲突`}
+              </small>
+            </div>
+          </div>
+          {!precheck.ok && (
+            <button className="nav nav-alert" onClick={() => setView('gate')}>
+              <AlertTriangle size={16} />
+              整批冲突待处理
+              <span className="red">{precheck.violations.length}</span>
+            </button>
+          )}
+          <button className="nav reset-nav" onClick={hardReset}>
+            <RotateCcw size={15} /> 重置演示数据
+          </button>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">
+              WORKSPACE / <b>PRODUCT ATTRIBUTION &amp; RUNTIME SCOPE</b>
+            </div>
+            <h1>产物归属与运行范围核对台</h1>
+            <p>
+              登记每个依赖的包名、引入方式、用途与所属产物；整批核对通过后冻结范围。
+            </p>
+          </div>
+          <div className="head-actions">
+            <div className={`status-chip ${precheck.ok ? 'ok' : 'bad'}`}>
+              {precheck.ok ? (
+                <>
+                  <Snowflake size={14} /> {isDirty ? '预检通过 · 待冻结' : '范围已一致'}
+                </>
+              ) : (
+                <>
+                  <AlertTriangle size={14} /> 整批拒绝 · {precheck.violations.length} 项
+                </>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <section className="summary">
+          <div>
+            <span>登记依赖</span>
+            <b>{state.draft.dependencies.length}</b>
+            <small>可归属多个产物</small>
+          </div>
+          <div>
+            <span>运行产物</span>
+            <b className="teal">{state.draft.artifacts.filter((a) => a.kind === 'runtime').length}</b>
+            <small>覆盖 {runtimeDepCount} 个运行依赖</small>
+          </div>
+          <div>
+            <span>冻结版本</span>
+            <b>{state.versions.length}</b>
+            <small>
+              {latest ? `最新 v${latest.number}` : '尚未冻结'}
+            </small>
+          </div>
+          <div>
+            <span>核对状态</span>
+            <b className={precheck.ok ? 'teal' : 'red'}>
+              {precheck.ok ? '通过' : `${precheck.violations.length} 项冲突`}
+            </b>
+            <small>{isDirty ? '草稿已偏离基线' : `与 v${draftVersion || '—'} 一致`}</small>
+          </div>
+        </section>
+
+        {view === 'gate' && (
+          <Overview
+            precheck={precheck}
+            draftVersion={draftVersion}
+            isDirty={isDirty}
+            latest={latest}
+            lastRejection={state.lastRejection}
+            onApprove={approve}
+            onReject={reject}
+          />
+        )}
+        {view === 'deps' && (
+          <Dependencies
+            dependencies={state.draft.dependencies}
+            artifacts={state.draft.artifacts}
+            violations={precheck.violations}
+            onChange={(deps: Dependency[]) => updateDraft({ dependencies: deps })}
+          />
+        )}
+        {view === 'artifacts' && (
+          <Artifacts
+            artifacts={state.draft.artifacts}
+            dependencies={state.draft.dependencies}
+            violations={precheck.violations}
+            onArtifactsChange={(arts: Artifact[]) => updateDraft({ artifacts: arts })}
+            onDependenciesChange={(deps: Dependency[]) => updateDraft({ dependencies: deps })}
+          />
+        )}
+        {view === 'versions' && (
+          <Versions
+            versions={state.versions}
+            selectedId={selectedVersion}
+            onSelect={setSelectedVersion}
+            onCheckout={checkout}
+          />
+        )}
+
+        {notice && <div className="toast">{notice}</div>}
+      </main>
+    </div>
+  );
+}
